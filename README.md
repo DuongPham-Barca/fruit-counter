@@ -1,5 +1,7 @@
 # Fruit Counter
 
+Full Vietnamese project documentation: [TAI_LIEU_DU_AN.md](TAI_LIEU_DU_AN.md).
+
 Train a Faster R-CNN detector from random initialization, track oranges and apples in
 prerecorded conveyor video, and count confirmed tracks crossing a configured line.
 
