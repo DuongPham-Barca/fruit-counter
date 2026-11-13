@@ -10,23 +10,30 @@ Each label line is: class_id center_x center_y width height, normalized to 0..1.
 """
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from torchvision import tv_tensors
 from torchvision.transforms import v2
 
 from .labels import CLASSES, model_label
+
+if TYPE_CHECKING:
+    from .train import TrainConfig
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
 
 __all__ = [
     "IMAGE_SUFFIXES",
     "YoloDetectionDataset",
+    "build_loaders",
     "collate",
     "eval_transforms",
     "read_yolo_labels",
+    "seed_worker",
     "train_transforms",
 ]
 
@@ -143,3 +150,47 @@ class YoloDetectionDataset(Dataset):
 def collate(batch):
     """Detection models consume lists because each image has a different box count."""
     return tuple(zip(*batch))
+
+
+def seed_worker(_worker_id: int) -> None:
+    """Give each loader worker deterministic NumPy RNG state."""
+    seed = torch.initial_seed() % 2**32
+    np.random.seed(seed)
+
+
+def build_loaders(
+    config: "TrainConfig",
+    device: torch.device,
+    generator: torch.Generator,
+):
+    """Build deterministic train and validation datasets/loaders."""
+    train_set = YoloDetectionDataset(
+        Path(config.data),
+        config.train_split,
+        train_transforms(),
+    )
+    val_set = YoloDetectionDataset(
+        Path(config.data),
+        config.val_split,
+        eval_transforms(),
+    )
+    train_loader = DataLoader(
+        train_set,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=config.workers,
+        pin_memory=device.type == "cuda",
+        collate_fn=collate,
+        worker_init_fn=seed_worker,
+        generator=generator,
+        drop_last=len(train_set) > config.batch_size,
+        persistent_workers=config.workers > 0,
+    )
+    val_loader = DataLoader(
+        val_set,
+        batch_size=1,
+        shuffle=False,
+        num_workers=min(config.workers, 2),
+        collate_fn=collate,
+    )
+    return train_set, val_set, train_loader, val_loader

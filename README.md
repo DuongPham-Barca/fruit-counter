@@ -14,20 +14,20 @@ train_model.py                   readable training entrypoint and settings
 evaluate_model.py                evaluate one trained checkpoint
 src/fruit_counter/
 ├── model.py                     explicit CNN, RPN and box-head layers
-├── dataset.py                   YOLO parsing and augmentation
-├── train.py                     public training API
-├── evaluate.py                  AP@0.5 metrics
+├── dataset.py                   YOLO parsing, augmentation and loaders
+├── train.py                     training config, checkpoints and public API
+├── engine.py                    train_one_epoch, validation, TensorBoard, checkpoints
+├── evaluate.py                  loss and AP@0.5 metrics
 ├── tracker.py                   tracking and line crossing
 ├── pipeline.py                  end-to-end video pipeline
 ├── video.py                     FFmpeg I/O
-└── engine/                      checkpoint/logging implementation details
 tools/                           dataset preparation and video-count utilities
 tests/                           unit and integration tests
 ```
 
-Start with `model.py`, `dataset.py`, and `train_model.py`. They expose the same
-Dataset → CNN → loss/optimizer → train/validate flow used by the brain-tumor project.
-The `engine/` package only contains reusable checkpoint and logging details.
+Start with `train_model.py`: it reads top-to-bottom as Dataset → CNN → loss/optimizer
+→ train/validate, like the brain-tumor project. `engine.py` keeps that complete loop
+in one place instead of scattering it across a folder.
 
 ## Setup
 

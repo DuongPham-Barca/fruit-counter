@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from torchvision.ops import nms
 
-from .engine.checkpoint import load_checkpoint
 from .labels import class_name
 from .model import ModelConfig, build_model
+from .train import load_checkpoint
 from .tracker import Detection
 
 

@@ -122,10 +122,11 @@ fruit-counter/
 ├── src/fruit_counter/
 │   ├── __main__.py              CLI `fruit-counter`.
 │   ├── labels.py                Mapping class dataset ↔ model.
-│   ├── dataset.py               YOLO parser, Dataset và augmentation.
+│   ├── dataset.py               YOLO parser, Dataset, augmentation và DataLoader.
 │   ├── model.py                 CNN, ResNet, FPN, RPN, RoI box head.
-│   ├── train.py                 Public training API.
-│   ├── evaluate.py              Public evaluation API.
+│   ├── train.py                 Config, checkpoint, schedule và public training API.
+│   ├── engine.py                Train một epoch, validate, TensorBoard và checkpoint.
+│   ├── evaluate.py              Loss, AP, precision, recall và confusion matrix.
 │   ├── frcnn_detector.py        Load checkpoint và inference trên frame.
 │   ├── tracker.py               Kalman, Hungarian matching, line counter.
 │   ├── pipeline.py              Pipeline đếm video end-to-end.
@@ -133,18 +134,6 @@ fruit-counter/
 │   ├── demo.py                  Sinh video giả lập.
 │   ├── demo_detector.py         Detector màu chỉ dành cho demo.
 │   ├── prepare_coco.py          Logic tải/chuyển COCO.
-│   ├── data/
-│   │   ├── __init__.py
-│   │   └── loaders.py           Tạo train/validation DataLoader.
-│   └── engine/
-│       ├── config.py            TrainConfig và kiểm tra cấu hình.
-│       ├── loop.py              Forward/backward/optimizer của một epoch.
-│       ├── trainer.py           Điều phối train/evaluate/log/checkpoint.
-│       ├── evaluator.py         Loss, AP, precision, recall, confusion matrix.
-│       ├── visualization.py     Ảnh prediction và confusion matrix TensorBoard.
-│       ├── checkpoint.py        Save/load atomic + RNG state.
-│       ├── schedule.py          Warmup, cosine LR và parameter groups.
-│       └── artifacts.py         Cấu trúc output và metadata.
 └── tests/
     ├── test_model.py
     ├── test_data_and_metrics.py
@@ -160,8 +149,8 @@ Nếu mới tiếp cận repository, đọc theo thứ tự:
 1. `train_model.py` để hiểu thông số và cách khởi động.
 2. `src/fruit_counter/dataset.py` để hiểu dữ liệu đầu vào.
 3. `src/fruit_counter/model.py` để hiểu architecture.
-4. `src/fruit_counter/engine/loop.py` để hiểu một training step.
-5. `src/fruit_counter/engine/trainer.py` để hiểu validation, logging và checkpoint.
+4. `src/fruit_counter/train.py` để hiểu config, schedule và checkpoint.
+5. `src/fruit_counter/engine.py` để hiểu training step, validation và logging.
 6. `src/fruit_counter/tracker.py` để hiểu theo dõi và đếm.
 7. `src/fruit_counter/pipeline.py` để hiểu luồng video hoàn chỉnh.
 
@@ -537,7 +526,7 @@ loader shuffle dữ liệu; validation loader không shuffle. Khi chạy CUDA, l
 
 ### 8.1. Trình tự một lần train
 
-Luồng trong `train_model.py` và `engine/trainer.py`:
+Luồng trong `train_model.py`, `train.py` và `engine.py`:
 
 1. Đọc tham số CLI và tạo `ModelConfig`, `TrainConfig`.
 2. Kiểm tra CUDA, các giá trị cấu hình và output directory.
@@ -1261,9 +1250,9 @@ ffprobe -version
 1. `train_model.py`: thấy toàn bộ cấu hình và entrypoint train.
 2. `src/fruit_counter/model.py`: đọc CNN, ResNet, FPN, RPN, RoI box head.
 3. `src/fruit_counter/dataset.py`: hiểu format label, mapping class và augmentation.
-4. `src/fruit_counter/engine/loop.py`: xem chính xác forward/backward/optimizer step.
-5. `src/fruit_counter/engine/trainer.py`: orchestration, validation, log và checkpoint.
-6. `src/fruit_counter/engine/evaluator.py`: công thức metric và validation loss.
+4. `src/fruit_counter/train.py`: config, LR schedule, checkpoint và metadata.
+5. `src/fruit_counter/engine.py`: forward/backward/optimizer, validation và log.
+6. `src/fruit_counter/evaluate.py`: công thức metric và validation loss.
 7. `evaluate_model.py`: entrypoint đánh giá độc lập.
 8. `src/fruit_counter/frcnn_detector.py`: adapter từ model sang detection.
 9. `src/fruit_counter/tracker.py`: Kalman, Hungarian, voting và line crossing.
