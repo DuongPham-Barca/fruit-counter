@@ -18,7 +18,7 @@ from fruit_counter.train import TrainConfig, train
 # CONFIGURATION
 # ============================================================
 DATA_DIR = Path("data/datasets/coco-fruit")
-OUTPUT_DIR = Path("outputs/frcnn_r50_coco_scratch")
+OUTPUT_DIR = Path("outputs/fruit_counter_net_r50_coco_scratch")
 BACKBONE = "resnet50"
 EPOCHS = 100
 BATCH_SIZE = 2
@@ -31,7 +31,7 @@ SEED = 42
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train Faster R-CNN fruit detector")
+    parser = argparse.ArgumentParser(description="Train FruitCounterNet")
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     parser.add_argument("--output", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--backbone", choices=("resnet18", "resnet34", "resnet50"), default=BACKBONE)
@@ -51,7 +51,7 @@ def main() -> None:
 
     # ========================================================
     # 1. MODEL
-    # ResNet CNN -> FPN -> RPN -> RoI box head.
+    # FruitCounterNet: ResNet CNN -> FPN -> RPN -> RoI box head.
     # All weights are randomly initialized; no pretrained model.
     # ========================================================
     model_config = ModelConfig(backbone=args.backbone)
@@ -76,7 +76,7 @@ def main() -> None:
 
     print("=" * 64)
     print("FRUIT DETECTOR TRAINING")
-    print(f"Model          : Faster R-CNN + {args.backbone} + FPN")
+    print(f"Model          : FruitCounterNet ({args.backbone} + FPN)")
     print("Classes        : background, orange, apple")
     print(f"Dataset        : {args.data}")
     print(f"Epochs         : {args.epochs}")

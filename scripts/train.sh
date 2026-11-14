@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source .venv/bin/activate
 
-OUTPUT=${OUTPUT:-outputs/frcnn_r50_coco_scratch}
+OUTPUT=${OUTPUT:-outputs/fruit_counter_net_r50_coco_scratch}
 args=(--output "$OUTPUT")
 if [[ -f "$OUTPUT/checkpoints/last.pt" ]]; then
   echo "Resuming from $OUTPUT/checkpoints/last.pt"

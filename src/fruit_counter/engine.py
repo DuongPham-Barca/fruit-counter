@@ -1,9 +1,10 @@
-"""Faster R-CNN training: one epoch, validation, checkpoints and TensorBoard."""
+"""FruitCounterNet training: one epoch, validation, checkpoints and TensorBoard."""
 
 import json
 import math
 import time
 from dataclasses import asdict, dataclass
+from itertools import islice
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ import torch
 from PIL import Image, ImageDraw
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import draw_bounding_boxes
+from tqdm import tqdm
 
 from .dataset import build_loaders
 from .evaluate import evaluate_loss, evaluate_model
@@ -70,9 +72,14 @@ def train_one_epoch(
         torch.cuda.reset_peak_memory_stats(device)
     optimizer.zero_grad(set_to_none=True)
 
-    for batch_index, (images, targets) in enumerate(loader):
-        if batch_index >= batches_per_epoch:
-            break
+    progress = tqdm(
+        islice(loader, batches_per_epoch),
+        total=batches_per_epoch,
+        desc=f"Epoch {epoch + 1}/{config.epochs}",
+        unit="batch",
+        dynamic_ncols=True,
+    )
+    for batch_index, (images, targets) in enumerate(progress):
         images = [image.to(device, non_blocking=True) for image in images]
         targets = [
             {"boxes": target["boxes"].to(device), "labels": target["labels"].to(device)}
@@ -83,6 +90,7 @@ def train_one_epoch(
             loss = sum(losses.values())
         if not torch.isfinite(loss):
             bad_batches += 1
+            progress.set_postfix(status="non-finite loss", skipped=bad_batches)
             writer.add_scalar("train/skipped_batches", bad_batches, step)
             optimizer.zero_grad(set_to_none=True)
             if bad_batches >= config.max_bad_batches:
@@ -100,6 +108,11 @@ def train_one_epoch(
             epoch_sums[name] = epoch_sums.get(name, 0.0) + scalar
             window_sums[name] = window_sums.get(name, 0.0) + scalar
         window_batches += 1
+        progress.set_postfix(
+            loss=f"{loss.item():.4f}",
+            avg_loss=f"{epoch_sums['loss_total'] / finite_batches:.4f}",
+            lr=f"{optimizer.param_groups[0]['lr']:.2e}",
+        )
 
         last_batch = batch_index + 1 == batches_per_epoch
         if finite_batches % config.accumulate != 0 and not last_batch:
@@ -113,6 +126,11 @@ def train_one_epoch(
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
         step += 1
+        progress.set_postfix(
+            loss=f"{loss.item():.4f}",
+            avg_loss=f"{epoch_sums['loss_total'] / finite_batches:.4f}",
+            lr=f"{lr:.2e}",
+        )
 
         if step % config.log_every == 0 and window_batches:
             elapsed = time.time() - window_started
@@ -124,11 +142,10 @@ def train_one_epoch(
             if device.type == "cuda":
                 writer.add_scalar("train/gpu_peak_memory_gb", torch.cuda.max_memory_allocated(device) / 1e9, step)
             remaining = (time.time() - training_started) / max(step, 1) * max(total_steps - step, 0)
-            print(
+            progress.write(
                 f"epoch {epoch + 1}/{config.epochs} step {step}/{total_steps} "
                 f"loss {window_sums['loss_total'] / window_batches:.4f} lr {lr:.5f} "
                 f"eta {_format_seconds(remaining)}",
-                flush=True,
             )
             window_sums, window_batches, window_started = {}, 0, time.time()
 

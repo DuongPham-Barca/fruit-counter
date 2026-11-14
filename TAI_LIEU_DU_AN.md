@@ -9,7 +9,7 @@
 2. [Phạm vi và đầu ra](#2-phạm-vi-và-đầu-ra)
 3. [Cấu trúc repository](#3-cấu-trúc-repository)
 4. [Luồng xử lý tổng thể](#4-luồng-xử-lý-tổng-thể)
-5. [Kiến trúc Faster R-CNN](#5-kiến-trúc-faster-r-cnn)
+5. [Kiến trúc FruitCounterNet](#5-kiến-trúc-fruitcounternet)
 6. [Kiến thức nền tảng CNN](#6-kiến-thức-nền-tảng-cnn)
 7. [Dataset và cách chia dữ liệu](#7-dataset-và-cách-chia-dữ-liệu)
 8. [Quy trình huấn luyện](#8-quy-trình-huấn-luyện)
@@ -52,7 +52,7 @@ Video đầu vào
     ↓
 FFmpeg decode từng frame
     ↓
-Faster R-CNN phát hiện bounding box + class + confidence
+FruitCounterNet phát hiện bounding box + class + confidence
     ↓
 ByteTrack-style tracker gán track ID
     ↓
@@ -127,7 +127,7 @@ fruit-counter/
 │   ├── train.py                 Config, checkpoint, schedule và public training API.
 │   ├── engine.py                Train một epoch, validate, TensorBoard và checkpoint.
 │   ├── evaluate.py              Loss, AP, precision, recall và confusion matrix.
-│   ├── frcnn_detector.py        Load checkpoint và inference trên frame.
+│   ├── fruit_counter_net.py     Load checkpoint và inference trên frame.
 │   ├── tracker.py               Kalman, Hungarian matching, line counter.
 │   ├── pipeline.py              Pipeline đếm video end-to-end.
 │   ├── video.py                 FFmpeg/FFprobe I/O.
@@ -195,7 +195,7 @@ Input MP4
     ↓ ffmpeg
 Decode và resize RGB frame
     ↓
-FasterRCNNDetector
+FruitCounterNetDetector
     ↓
 Cross-class NMS
     ↓
@@ -212,7 +212,10 @@ Annotation + MP4/JSON/CSV output
 
 ---
 
-## 5. Kiến trúc Faster R-CNN
+## 5. Kiến trúc FruitCounterNet
+
+FruitCounterNet là tên mô hình của dự án, được xây dựng dựa trên thiết kế
+hai giai đoạn Faster R-CNN với backbone, FPN, RPN và box head do dự án khai báo.
 
 Model được khai báo tường minh trong `src/fruit_counter/model.py`.
 
@@ -486,7 +489,7 @@ train với:
 ```sh
 PYTHONPATH=src python train_model.py \
   --data data/datasets/coco-fruit-80-20 \
-  --output outputs/frcnn_r50_80_20
+  --output outputs/fruit_counter_net_r50_80_20
 ```
 
 Lưu ý: tool lấy COCO `train2017`, tách một phần làm validation và dùng ảnh liên quan từ
@@ -751,7 +754,7 @@ Validation hiện chạy hai pass: một pass lấy loss và một pass inferenc
 Khởi động TensorBoard từ repository root:
 
 ```sh
-tensorboard --logdir outputs/frcnn_r50_coco_scratch/logs/tensorboard
+tensorboard --logdir outputs/fruit_counter_net_r50_coco_scratch/logs/tensorboard
 ```
 
 Sau đó mở địa chỉ TensorBoard in trên terminal, thường là `http://localhost:6006`.
@@ -835,8 +838,8 @@ Hoặc chỉ rõ checkpoint:
 
 ```sh
 PYTHONPATH=src python train_model.py \
-  --output outputs/frcnn_r50_coco_scratch \
-  --resume outputs/frcnn_r50_coco_scratch/checkpoints/last.pt
+  --output outputs/fruit_counter_net_r50_coco_scratch \
+  --resume outputs/fruit_counter_net_r50_coco_scratch/checkpoints/last.pt
 ```
 
 Khi resume phải dùng lại dataset, batch size, accumulation, LR, optimizer-related config,
@@ -852,7 +855,7 @@ Lưu ý: `--resume` không có giá trị trong `train_model.py` tự hiểu là
 
 ### 14.1. Detector wrapper
 
-`FasterRCNNDetector` đọc model config và weights từ checkpoint, chuyển ảnh NumPy sang
+`FruitCounterNetDetector` đọc model config và weights từ checkpoint, chuyển ảnh NumPy sang
 tensor, chạy model ở inference mode và trả danh sách `Detection(label, bbox, score)`.
 Nên dùng `best_map50.pt` cho video thực tế.
 
@@ -975,7 +978,7 @@ PYTHONPATH=src python train_model.py \
   --batch-size 1 \
   --accumulate 8 \
   --workers 2 \
-  --output outputs/frcnn_r34_small_gpu
+  --output outputs/fruit_counter_net_r34_small_gpu
 ```
 
 Train bằng package CLI, có nhiều option nâng cao hơn:
@@ -1013,7 +1016,7 @@ PYTHONPATH=src python train_model.py \
   --batch-size 1 \
   --accumulate 8 \
   --workers 2 \
-  --output outputs/frcnn_r34_small_gpu \
+  --output outputs/fruit_counter_net_r34_small_gpu \
   --resume
 ```
 
@@ -1022,7 +1025,7 @@ PYTHONPATH=src python train_model.py \
 ```sh
 PYTHONPATH=src python evaluate_model.py \
   --data data/datasets/coco-fruit \
-  --weights outputs/frcnn_r50_coco_scratch/checkpoints/best_map50.pt \
+  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --split test \
   --device cuda
 ```
@@ -1032,7 +1035,7 @@ PYTHONPATH=src python evaluate_model.py \
 ```sh
 PYTHONPATH=src python tools/count_video.py \
   input/video.mp4 \
-  outputs/frcnn_r50_coco_scratch/checkpoints/best_map50.pt \
+  outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count_video_01 \
   --device cuda \
   --width 640 \
@@ -1046,9 +1049,9 @@ Tương đương bằng package CLI:
 ```sh
 fruit-counter count \
   --input input/video.mp4 \
-  --weights outputs/frcnn_r50_coco_scratch/checkpoints/best_map50.pt \
+  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count_video_01 \
-  --detector frcnn \
+  --detector fruit-counter-net \
   --direction ltr
 ```
 
@@ -1074,7 +1077,7 @@ lượng model Faster R-CNN và không nên dùng với video thật.
 Một work directory có dạng:
 
 ```text
-outputs/frcnn_r50_coco_scratch/
+outputs/fruit_counter_net_r50_coco_scratch/
 ├── checkpoints/
 │   ├── last.pt
 │   ├── best_map50.pt
@@ -1254,7 +1257,7 @@ ffprobe -version
 5. `src/fruit_counter/engine.py`: forward/backward/optimizer, validation và log.
 6. `src/fruit_counter/evaluate.py`: công thức metric và validation loss.
 7. `evaluate_model.py`: entrypoint đánh giá độc lập.
-8. `src/fruit_counter/frcnn_detector.py`: adapter từ model sang detection.
+8. `src/fruit_counter/fruit_counter_net.py`: adapter từ model sang detection.
 9. `src/fruit_counter/tracker.py`: Kalman, Hungarian, voting và line crossing.
 10. `src/fruit_counter/pipeline.py`: nối detector → tracker → FFmpeg output.
 11. `tests/`: xem hành vi kỳ vọng và các edge case.

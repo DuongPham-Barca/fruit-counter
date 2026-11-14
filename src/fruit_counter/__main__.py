@@ -13,8 +13,12 @@ def _add_count(commands) -> None:
     count = commands.add_parser("count", help="count fruit crossing a line in a video")
     count.add_argument("--input", type=Path, required=True)
     count.add_argument("--output", type=Path, default=Path("runs/count"))
-    count.add_argument("--detector", choices=("frcnn", "color-demo"), default="frcnn")
-    count.add_argument("--weights", type=Path, help="Faster R-CNN checkpoint (best_map50.pt)")
+    count.add_argument(
+        "--detector",
+        choices=("fruit-counter-net", "color-demo"),
+        default="fruit-counter-net",
+    )
+    count.add_argument("--weights", type=Path, help="FruitCounterNet checkpoint (best_map50.pt)")
     count.add_argument("--device", default="cuda")
     count.add_argument("--min-score", type=float, default=0.1,
                        help="lowest detection score passed to the tracker")
@@ -24,7 +28,7 @@ def _add_count(commands) -> None:
 
 
 def _add_train(commands) -> None:
-    train = commands.add_parser("train", help="train Faster R-CNN from random initialization")
+    train = commands.add_parser("train", help="train FruitCounterNet from random initialization")
     train.add_argument("--data", type=Path, required=True, help="YOLO-format dataset root")
     train.add_argument("--output", type=Path, default=Path("runs/train"))
     train.add_argument("--backbone", choices=("resnet18", "resnet34", "resnet50"), default="resnet50")
@@ -98,9 +102,9 @@ def _run(args) -> object:
 
         from .dataset import YoloDetectionDataset, collate
         from .evaluate import evaluate_model
-        from .frcnn_detector import FasterRCNNDetector
+        from .fruit_counter_net import FruitCounterNetDetector
 
-        detector = FasterRCNNDetector(args.weights, args.device, min_score=0.05)
+        detector = FruitCounterNetDetector(args.weights, args.device, min_score=0.05)
         loader = DataLoader(YoloDetectionDataset(args.data, args.split), batch_size=2,
                             collate_fn=collate)
         return evaluate_model(detector.model, loader, detector.device)
@@ -111,12 +115,12 @@ def _run(args) -> object:
         result = count_video(args.input, args.output, args.width, args.line, args.direction)
     else:
         if args.weights is None:
-            raise ValueError("--weights is required with --detector frcnn")
-        from .frcnn_detector import FasterRCNNDetector
+            raise ValueError("--weights is required with --detector fruit-counter-net")
+        from .fruit_counter_net import FruitCounterNetDetector
 
-        detector = FasterRCNNDetector(args.weights, args.device, min_score=args.min_score)
+        detector = FruitCounterNetDetector(args.weights, args.device, min_score=args.min_score)
         result = count_video(args.input, args.output, args.width, args.line, args.direction,
-                             detector=detector, method=f"faster_rcnn:{args.weights}")
+                             detector=detector, method=f"fruit_counter_net:{args.weights}")
     return {"counts": result["counts"], "total": result["total"]}
 
 

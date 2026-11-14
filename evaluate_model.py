@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from fruit_counter.dataset import YoloDetectionDataset, collate
 from fruit_counter.evaluate import evaluate_model
-from fruit_counter.frcnn_detector import FasterRCNNDetector
+from fruit_counter.fruit_counter_net import FruitCounterNetDetector
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
 
-    detector = FasterRCNNDetector(args.weights, args.device, min_score=0.05)
+    detector = FruitCounterNetDetector(args.weights, args.device, min_score=0.05)
     dataset = YoloDetectionDataset(args.data, args.split)
     loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate)
     metrics = evaluate_model(

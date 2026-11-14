@@ -39,7 +39,7 @@ __all__ = [
 
 
 def read_yolo_labels(path: Path, width: int, height: int) -> tuple[list, list]:
-    """Convert normalized YOLO labels to absolute XYXY boxes for Faster R-CNN."""
+    """Convert normalized YOLO labels to absolute XYXY boxes for FruitCounterNet."""
     boxes, labels = [], []
     if not path.exists():
         return boxes, labels
@@ -94,7 +94,7 @@ def eval_transforms() -> v2.Compose:
 
 
 class YoloDetectionDataset(Dataset):
-    """Load RGB images and Faster R-CNN targets from one dataset split."""
+    """Load RGB images and FruitCounterNet targets from one dataset split."""
 
     def __init__(
         self, root: Path, split: str, transforms: v2.Compose | None = None

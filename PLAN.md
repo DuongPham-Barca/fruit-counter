@@ -8,7 +8,7 @@
 
 ## Trạng thái hiện tại
 
-- **Mô hình nhận diện: Faster R-CNN** (Ren et al. 2015) gồm backbone ResNet-50, FPN (Lin et al. 2017), RPN, RoIAlign 7×7, box head 4conv-1fc và bộ phân loại 3 lớp (nền/cam/táo). Toàn bộ CNN, GroupNorm và ReLU được khai báo tường minh ở `src/fruit_counter/model.py`.
+- **Mô hình nhận diện: FruitCounterNet**, dựa trên thiết kế Faster R-CNN (Ren et al. 2015), gồm backbone ResNet-50, FPN (Lin et al. 2017), RPN, RoIAlign 7×7, box head 4conv-1fc và bộ phân loại 3 lớp (nền/cam/táo). Toàn bộ CNN, GroupNorm và ReLU được khai báo tường minh ở `src/fruit_counter/model.py`.
   - Mọi trọng số khởi tạo ngẫu nhiên. Mọi lớp chuẩn hóa là GroupNorm, theo He et al. 2018, "Rethinking ImageNet Pre-training".
   - Có test chặn tải trọng số và kiểm tra không còn BatchNorm hay lớp bị đóng băng.
   - Anchor có 5 mức (16–256 px), tỉ lệ khung 0.75/1/1.33.
@@ -35,7 +35,7 @@
 | 1. Khung dự án — đã dựng | Tạo `src/fruit_counter/`, `tests/`, `data/README.md`; dùng `fruit-counter demo --output runs/demo.mp4` và `fruit-counter count --detector color-demo --input runs/demo.mp4 --output runs/demo-count` để thử luồng. | Đọc video, xử lý từng khung hình, ghi video/JSON/CSV và kiểm thử quy tắc cộng một lần bằng clip giả lập. |
 | 2. Thu dữ liệu thật | Quay đoạn băng chuyền trống và các video chỉ có cam, chỉ có táo, có cả hai loại, với nhiều tốc độ, ánh sáng và mức che khuất. Gán khung bao + loại ở các khung hình chọn lọc; gán ID và sự kiện qua đường để kiểm tra số đếm. Chia **theo video/lần quay**, không chia ngẫu nhiên từng khung hình. | Bộ train/validation/test và bảng số cam, số táo đúng cho mỗi video. |
 | 3. Thuật toán ban đầu | Với camera cố định và nền đơn giản, thử tách vật thể bằng màu/chuyển động; nối vị trí giữa các khung hình thành ID và đếm khi ID qua đường đúng chiều. Dùng kết quả này làm mốc so sánh, không coi là độ chính xác trên cảnh chưa được kiểm tra. | Video minh họa, sự kiện đếm có thời điểm/ID và bảng lỗi. |
-| 4. Huấn luyện từ đầu — đã dựng mã, chưa huấn luyện | Faster R-CNN ResNet-50-FPN với GroupNorm; train trước trên COCO cam/táo, sau đó fine-tune trên khung hình băng chuyền đã gán nhãn. Khởi tạo mọi trọng số ngẫu nhiên, lưu seed/cấu hình, huấn luyện trên tập train và chọn cấu hình bằng validation. Kiểm tra cả trọng số của backbone: với một số hàm TorchVision, `weights=None` vẫn để mặc định backbone pretrained, nên phải đặt thêm `weights_backbone=None`. | Checkpoint tự huấn luyện, log huấn luyện và báo cáo trên tập test giữ riêng. |
+| 4. Huấn luyện từ đầu — đã dựng mã, chưa huấn luyện | FruitCounterNet ResNet-50-FPN với GroupNorm; train trước trên COCO cam/táo, sau đó fine-tune trên khung hình băng chuyền đã gán nhãn. Khởi tạo mọi trọng số ngẫu nhiên, lưu seed/cấu hình, huấn luyện trên tập train và chọn cấu hình bằng validation. | Checkpoint tự huấn luyện, log huấn luyện và báo cáo trên tập test giữ riêng. |
 | 5. Tích hợp và hoàn thiện — đã nối mã (`count --weights`), chờ mô hình đã train | Thay bộ nhận diện ban đầu bằng mô hình đã huấn luyện; xử lý mất dấu, che khuất, ra/vào lại khung hình; xuất video có ID, đường đếm, tổng theo loại và JSON/CSV sự kiện. | Lệnh chạy lặp lại được từ video đầu vào và hướng dẫn cài đặt/chạy trong README. |
 
 ## Đánh giá và điều kiện hoàn thành

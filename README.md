@@ -2,10 +2,11 @@
 
 Full Vietnamese project documentation: [TAI_LIEU_DU_AN.md](TAI_LIEU_DU_AN.md).
 
-Train a Faster R-CNN detector from random initialization, track oranges and apples in
-prerecorded conveyor video, and count confirmed tracks crossing a configured line.
+Train FruitCounterNet from random initialization, track oranges and apples in prerecorded
+conveyor video, and count confirmed tracks crossing a configured line. FruitCounterNet
+is the project's custom detector based on the two-stage Faster R-CNN design.
 
-Pipeline: **Faster R-CNN → ByteTrack-style tracker → line-crossing counter**.
+Pipeline: **FruitCounterNet → ByteTrack-style tracker → line-crossing counter**.
 
 ## Project layout
 
@@ -14,6 +15,7 @@ train_model.py                   readable training entrypoint and settings
 evaluate_model.py                evaluate one trained checkpoint
 src/fruit_counter/
 ├── model.py                     explicit CNN, RPN and box-head layers
+├── fruit_counter_net.py         checkpoint/inference adapter
 ├── dataset.py                   YOLO parsing, augmentation and loaders
 ├── train.py                     training config, checkpoints and public API
 ├── engine.py                    train_one_epoch, validation, TensorBoard, checkpoints
@@ -116,8 +118,11 @@ PYTHONPATH=src python train_model.py --output outputs/experiment_001
 Monitor training:
 
 ```sh
-tensorboard --logdir outputs/frcnn_r50_coco_scratch/logs/tensorboard
+tensorboard --logdir outputs/fruit_counter_net_r50_coco_scratch/logs/tensorboard
 ```
+
+The terminal displays a `tqdm` progress bar for every epoch with the current loss,
+epoch-average loss, learning rate, batch speed, and estimated remaining time.
 
 TensorBoard records training loss components, validation loss components, mAP50,
 per-class precision/recall, macro precision/recall, a background/orange/apple confusion
@@ -138,7 +143,7 @@ rejected instead of silently changing the experiment.
 ## Run artifacts
 
 ```text
-outputs/frcnn_r50_coco_scratch/
+outputs/fruit_counter_net_r50_coco_scratch/
 ├── run_metadata.json
 ├── checkpoints/
 │   ├── best_map50.pt
@@ -161,7 +166,7 @@ Evaluate the best checkpoint on the held-out test split:
 
 ```sh
 PYTHONPATH=src python evaluate_model.py \
-  --weights outputs/frcnn_r50_coco_scratch/checkpoints/best_map50.pt \
+  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --split test
 ```
 
@@ -172,7 +177,7 @@ mAP@[0.50:0.95] evaluator should be added before publishing benchmark results.
 
 ```sh
 PYTHONPATH=src python tools/count_video.py video.mp4 \
-  outputs/frcnn_r50_coco_scratch/checkpoints/best_map50.pt \
+  outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count
 ```
 

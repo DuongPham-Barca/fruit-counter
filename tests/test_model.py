@@ -5,8 +5,9 @@ import torch
 from torch import nn
 from torchvision.ops.misc import FrozenBatchNorm2d
 
-from fruit_counter.frcnn_detector import merge_cross_class
+from fruit_counter.fruit_counter_net import merge_cross_class
 from fruit_counter.model import (
+    FruitCounterNet,
     FruitBoxHead,
     FruitPredictor,
     FruitRPNHead,
@@ -29,6 +30,7 @@ def no_download(*args, **kwargs):
 class ModelTests(unittest.TestCase):
     def test_architecture_uses_explicit_project_cnn_heads(self):
         model = build_model(small_config())
+        self.assertIsInstance(model, FruitCounterNet)
         self.assertIsInstance(model.backbone.body, torch.nn.Module)
         self.assertIsInstance(model.rpn.head, FruitRPNHead)
         self.assertIsInstance(model.roi_heads.box_head, FruitBoxHead)

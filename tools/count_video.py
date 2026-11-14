@@ -5,7 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
-from fruit_counter.frcnn_detector import FasterRCNNDetector
+from fruit_counter.fruit_counter_net import FruitCounterNetDetector
 from fruit_counter.pipeline import count_video
 
 
@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument("--direction", choices=("ltr", "rtl"), default="ltr")
     parser.add_argument("--min-score", type=float, default=0.1)
     args = parser.parse_args()
-    detector = FasterRCNNDetector(args.checkpoint, args.device, args.min_score)
+    detector = FruitCounterNetDetector(args.checkpoint, args.device, args.min_score)
     result = count_video(
         args.input,
         args.output,
@@ -28,7 +28,7 @@ def main() -> None:
         args.line,
         args.direction,
         detector=detector,
-        method=f"faster_rcnn:{args.checkpoint}",
+        method=f"fruit_counter_net:{args.checkpoint}",
     )
     print(json.dumps({"counts": result["counts"], "total": result["total"]}))
 

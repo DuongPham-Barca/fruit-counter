@@ -1,20 +1,21 @@
-"""Explicit Faster R-CNN architecture for orange/apple detection.
+"""FruitCounterNet architecture for orange/apple detection.
 
 The project intentionally declares every trainable CNN block here so the model can be
 read in the same order as a textbook diagram:
 
     image -> ResNet CNN -> FPN -> RPN -> RoIAlign -> box CNN -> class/box outputs
 
-The final heads return logits. Faster R-CNN applies BCE-with-logits to RPN objectness,
-cross-entropy to the mutually exclusive background/orange/apple classes, and softmax
-during inference. Therefore an explicit sigmoid does not belong in the class head.
+FruitCounterNet is based on the two-stage Faster R-CNN design. Its final heads return
+logits: BCE-with-logits is used for RPN objectness, cross-entropy for the mutually
+exclusive background/orange/apple classes, and softmax during inference. Therefore an
+explicit sigmoid does not belong in the class head.
 """
 
 from dataclasses import asdict, dataclass
 
 import torch
 from torch import Tensor, nn
-from torchvision.models.detection import FasterRCNN
+from torchvision.models.detection import FasterRCNN as TorchvisionFasterRCNN
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import BackboneWithFPN
 from torchvision.ops import MultiScaleRoIAlign
@@ -279,6 +280,14 @@ class ModelConfig:
         return asdict(self)
 
 
+class FruitCounterNet(TorchvisionFasterRCNN):
+    """Project detector based on a two-stage region-proposal architecture.
+
+    The project owns the ResNet backbone, FPN wiring, RPN head, RoI box head and
+    prediction head. TorchVision supplies the well-tested proposal/target plumbing.
+    """
+
+
 def build_backbone(config: ModelConfig) -> BackboneWithFPN:
     """Build explicit ResNet stages and connect their outputs to an FPN."""
     if config.backbone not in BACKBONES:
@@ -295,8 +304,8 @@ def build_backbone(config: ModelConfig) -> BackboneWithFPN:
     )
 
 
-def build_model(config: ModelConfig | None = None) -> FasterRCNN:
-    """Assemble the complete Faster R-CNN detector from explicit CNN components."""
+def build_model(config: ModelConfig | None = None) -> FruitCounterNet:
+    """Assemble the complete FruitCounterNet detector."""
     config = config or ModelConfig()
     if len(config.anchor_sizes) != 5:
         raise ValueError("anchor_sizes needs one size per FPN level (5 values)")
@@ -307,7 +316,7 @@ def build_model(config: ModelConfig | None = None) -> FasterRCNN:
         aspect_ratios=(tuple(config.aspect_ratios),) * len(config.anchor_sizes),
     )
     roi_size = 7
-    return FasterRCNN(
+    return FruitCounterNet(
         backbone,
         min_size=config.min_size,
         max_size=config.max_size,

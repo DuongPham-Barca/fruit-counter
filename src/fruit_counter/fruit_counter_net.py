@@ -1,4 +1,4 @@
-"""Load the trained Faster R-CNN and convert frame predictions into detections."""
+"""Load FruitCounterNet and convert frame predictions into tracked detections."""
 
 from pathlib import Path
 
@@ -23,8 +23,8 @@ def merge_cross_class(output: dict, iou: float) -> dict:
     }
 
 
-class FasterRCNNDetector:
-    """Callable detector used by the video counting pipeline."""
+class FruitCounterNetDetector:
+    """Callable FruitCounterNet adapter used by the video counting pipeline."""
 
     def __init__(
         self,
