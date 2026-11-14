@@ -963,60 +963,43 @@ PYTHONPATH=src python tools/prepare_coco.py \
 
 ### 15.4. Train
 
-Train theo block config ở đầu file:
+Kích hoạt môi trường, sau đó train bằng CLI:
 
 ```sh
-PYTHONPATH=src python train_model.py
-```
+source .venv/bin/activate
 
-Ví dụ GPU ít VRAM:
-
-```sh
-PYTHONPATH=src python train_model.py \
-  --backbone resnet34 \
-  --batch-size 1 \
-  --accumulate 8 \
-  --workers 2 \
-  --output outputs/fruit_counter_net_r34_small_gpu
-```
-
-Train bằng package CLI, có nhiều option nâng cao hơn:
-
-```sh
 fruit-counter train \
   --data data/datasets/coco-fruit \
-  --output outputs/experiment_001 \
+  --output outputs/fruit_counter_net_r50_coco_scratch \
   --backbone resnet50 \
   --epochs 100 \
   --batch-size 2 \
   --accumulate 4 \
   --lr 0.01 \
+  --workers 4 \
   --device cuda
 ```
 
 Xem mọi option:
 
 ```sh
-PYTHONPATH=src python train_model.py --help
 fruit-counter train --help
 ```
 
 ### 15.5. Resume
 
 ```sh
-PYTHONPATH=src python train_model.py --resume
-```
-
-Nếu run trước dùng option khác mặc định, phải lặp lại các option đó khi resume:
-
-```sh
-PYTHONPATH=src python train_model.py \
-  --backbone resnet34 \
-  --batch-size 1 \
-  --accumulate 8 \
-  --workers 2 \
-  --output outputs/fruit_counter_net_r34_small_gpu \
-  --resume
+fruit-counter train \
+  --data data/datasets/coco-fruit \
+  --output outputs/fruit_counter_net_r50_coco_scratch \
+  --backbone resnet50 \
+  --epochs 100 \
+  --batch-size 2 \
+  --accumulate 4 \
+  --lr 0.01 \
+  --workers 4 \
+  --device cuda \
+  --resume outputs/fruit_counter_net_r50_coco_scratch/checkpoints/last.pt
 ```
 
 ### 15.6. Evaluate

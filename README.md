@@ -97,22 +97,37 @@ detector checkpoint is downloaded.
 
 ## Train
 
-Open the configuration block at the top of `train_model.py`, then run:
+Activate the environment once, then start training from the repository root:
 
 ```sh
-PYTHONPATH=src python train_model.py
+source .venv/bin/activate
+
+fruit-counter train \
+  --data data/datasets/coco-fruit \
+  --output outputs/fruit_counter_net_r50_coco_scratch \
+  --backbone resnet50 \
+  --epochs 100 \
+  --batch-size 2 \
+  --accumulate 4 \
+  --lr 0.01 \
+  --workers 4 \
+  --device cuda
 ```
 
-Settings can also be overridden from the command line:
+Resume an interrupted run with the same settings and its last checkpoint:
 
 ```sh
-PYTHONPATH=src python train_model.py --epochs 50 --workers 2 --backbone resnet34
-```
-
-Use a custom work directory:
-
-```sh
-PYTHONPATH=src python train_model.py --output outputs/experiment_001
+fruit-counter train \
+  --data data/datasets/coco-fruit \
+  --output outputs/fruit_counter_net_r50_coco_scratch \
+  --backbone resnet50 \
+  --epochs 100 \
+  --batch-size 2 \
+  --accumulate 4 \
+  --lr 0.01 \
+  --workers 4 \
+  --device cuda \
+  --resume outputs/fruit_counter_net_r50_coco_scratch/checkpoints/last.pt
 ```
 
 Monitor training:
@@ -128,13 +143,6 @@ TensorBoard records training loss components, validation loss components, mAP50,
 per-class precision/recall, macro precision/recall, a background/orange/apple confusion
 matrix, learning rate, gradient norm, GPU memory, speed, and annotated validation images.
 Precision, recall, and the confusion matrix use confidence ≥ 0.5 and IoU ≥ 0.5.
-
-Resume after Ctrl+C. Omitting the checkpoint value selects
-`checkpoints/last.pt` inside the work directory:
-
-```sh
-PYTHONPATH=src python train_model.py --resume
-```
 
 Resume restores model, optimizer, AMP scaler, Python/NumPy/PyTorch RNG and data-loader
 generator state. Changes to data, batch size, accumulation, optimizer or seed are
