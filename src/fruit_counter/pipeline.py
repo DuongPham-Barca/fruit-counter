@@ -9,7 +9,6 @@ from typing import Callable
 import numpy as np
 from PIL import Image, ImageDraw
 
-from .demo_detector import detect_demo_fruit
 from .tracker import Detection, LineCounter
 from .video import encode_video, iter_video_frames, probe_video, scaled_size
 
@@ -42,14 +41,14 @@ def count_video(
     width: int = 320,
     line_ratio: float = 0.5,
     direction: str = "ltr",
-    detector: Callable[[np.ndarray], list[Detection]] | None = None,
-    method: str = "synthetic_color_demo",
+    *,
+    detector: Callable[[np.ndarray], list[Detection]],
+    method: str = "fruit_counter_net",
 ) -> dict:
     if not 0 < line_ratio < 1:
         raise ValueError("line_ratio must be between 0 and 1")
     info = probe_video(input_path)
     size = scaled_size(info, width)
-    detector = detector or detect_demo_fruit
     counter = LineCounter(line_x=size[0] * line_ratio, direction=direction)
     output_dir.mkdir(parents=True, exist_ok=True)
     frame_count = 0
@@ -76,8 +75,6 @@ def count_video(
         "total": sum(counter.counts.values()),
         "events": events,
     }
-    if method == "synthetic_color_demo":
-        summary["warning"] = "Color thresholds are only calibrated for the generated demo video."
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )

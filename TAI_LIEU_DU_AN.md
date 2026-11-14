@@ -132,7 +132,6 @@ fruit-counter/
 │   ├── pipeline.py              Pipeline đếm video end-to-end.
 │   ├── video.py                 FFmpeg/FFprobe I/O.
 │   ├── demo.py                  Sinh video giả lập.
-│   ├── demo_detector.py         Detector màu chỉ dành cho demo.
 │   ├── prepare_coco.py          Logic tải/chuyển COCO.
 └── tests/
     ├── test_model.py
@@ -1051,22 +1050,8 @@ fruit-counter count \
   --input input/video.mp4 \
   --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count_video_01 \
-  --detector fruit-counter-net \
   --direction ltr
 ```
-
-### 15.8. Demo không cần model đã train
-
-```sh
-fruit-counter demo --output runs/demo.mp4
-fruit-counter count \
-  --input runs/demo.mp4 \
-  --output runs/demo-count \
-  --detector color-demo
-```
-
-Color detector chỉ được hiệu chỉnh cho video demo sinh tự động, không đại diện cho chất
-lượng model Faster R-CNN và không nên dùng với video thật.
 
 ---
 

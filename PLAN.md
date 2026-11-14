@@ -22,7 +22,6 @@
   - Đếm một lần khi tâm track đi từ phía xuất hiện sang phía bên kia đường đếm.
 - **Dữ liệu ban đầu:** COCO 2017, chỉ lấy ảnh có cam hoặc táo, bỏ ảnh có khung crowd (`fruit-counter prepare-coco`).
 - **Phần cứng:** RTX 3050 Laptop 4GB. ResNet-50 ở 512 px, batch 2 dùng khoảng 3.5GB VRAM, khoảng 0.46 s/batch; suy luận khoảng 9 FPS. Ở 640 px mô hình vượt 4GB và chậm khoảng 10 lần.
-- **Bộ nhận diện màu** chỉ còn dùng để kiểm thử pipeline trên clip giả lập (`--detector color-demo`).
 
 ## Quy tắc đếm trên dây chuyền
 
@@ -32,7 +31,7 @@
 
 | Mốc | Công việc | Kết quả |
 | --- | --- | --- |
-| 1. Khung dự án — đã dựng | Tạo `src/fruit_counter/`, `tests/`, `data/README.md`; dùng `fruit-counter demo --output runs/demo.mp4` và `fruit-counter count --detector color-demo --input runs/demo.mp4 --output runs/demo-count` để thử luồng. | Đọc video, xử lý từng khung hình, ghi video/JSON/CSV và kiểm thử quy tắc cộng một lần bằng clip giả lập. |
+| 1. Khung dự án — đã dựng | Tạo `src/fruit_counter/`, `tests/`, `data/README.md`; pipeline nhận detector qua dependency injection để test độc lập với model. | Đọc video, xử lý từng khung hình, ghi video/JSON/CSV và kiểm thử quy tắc cộng một lần bằng clip giả lập. |
 | 2. Thu dữ liệu thật | Quay đoạn băng chuyền trống và các video chỉ có cam, chỉ có táo, có cả hai loại, với nhiều tốc độ, ánh sáng và mức che khuất. Gán khung bao + loại ở các khung hình chọn lọc; gán ID và sự kiện qua đường để kiểm tra số đếm. Chia **theo video/lần quay**, không chia ngẫu nhiên từng khung hình. | Bộ train/validation/test và bảng số cam, số táo đúng cho mỗi video. |
 | 3. Thuật toán ban đầu | Với camera cố định và nền đơn giản, thử tách vật thể bằng màu/chuyển động; nối vị trí giữa các khung hình thành ID và đếm khi ID qua đường đúng chiều. Dùng kết quả này làm mốc so sánh, không coi là độ chính xác trên cảnh chưa được kiểm tra. | Video minh họa, sự kiện đếm có thời điểm/ID và bảng lỗi. |
 | 4. Huấn luyện từ đầu — đã dựng mã, chưa huấn luyện | FruitCounterNet ResNet-50-FPN với GroupNorm; train trước trên COCO cam/táo, sau đó fine-tune trên khung hình băng chuyền đã gán nhãn. Khởi tạo mọi trọng số ngẫu nhiên, lưu seed/cấu hình, huấn luyện trên tập train và chọn cấu hình bằng validation. | Checkpoint tự huấn luyện, log huấn luyện và báo cáo trên tập test giữ riêng. |

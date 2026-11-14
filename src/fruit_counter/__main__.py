@@ -14,11 +14,11 @@ def _add_count(commands) -> None:
     count.add_argument("--input", type=Path, required=True)
     count.add_argument("--output", type=Path, default=Path("runs/count"))
     count.add_argument(
-        "--detector",
-        choices=("fruit-counter-net", "color-demo"),
-        default="fruit-counter-net",
+        "--weights",
+        type=Path,
+        required=True,
+        help="FruitCounterNet checkpoint (best_map50.pt)",
     )
-    count.add_argument("--weights", type=Path, help="FruitCounterNet checkpoint (best_map50.pt)")
     count.add_argument("--device", default="cuda")
     count.add_argument("--min-score", type=float, default=0.1,
                        help="lowest detection score passed to the tracker")
@@ -111,16 +111,18 @@ def _run(args) -> object:
 
     from .pipeline import count_video
 
-    if args.detector == "color-demo":
-        result = count_video(args.input, args.output, args.width, args.line, args.direction)
-    else:
-        if args.weights is None:
-            raise ValueError("--weights is required with --detector fruit-counter-net")
-        from .fruit_counter_net import FruitCounterNetDetector
+    from .fruit_counter_net import FruitCounterNetDetector
 
-        detector = FruitCounterNetDetector(args.weights, args.device, min_score=args.min_score)
-        result = count_video(args.input, args.output, args.width, args.line, args.direction,
-                             detector=detector, method=f"fruit_counter_net:{args.weights}")
+    detector = FruitCounterNetDetector(args.weights, args.device, min_score=args.min_score)
+    result = count_video(
+        args.input,
+        args.output,
+        args.width,
+        args.line,
+        args.direction,
+        detector=detector,
+        method=f"fruit_counter_net:{args.weights}",
+    )
     return {"counts": result["counts"], "total": result["total"]}
 
 

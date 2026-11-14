@@ -183,14 +183,6 @@ PYTHONPATH=src python tools/count_video.py video.mp4 \
 
 The output contains `annotated.mp4`, `summary.json`, and `events.csv`.
 
-The synthetic demo remains available for checking the video/tracker path without a
-trained model:
-
-```sh
-fruit-counter demo --output runs/demo.mp4
-fruit-counter count --detector color-demo --input runs/demo.mp4 --output runs/demo-count
-```
-
 ## Tests
 
 ```sh
