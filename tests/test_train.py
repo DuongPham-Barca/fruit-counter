@@ -49,9 +49,8 @@ class TrainingRunTests(unittest.TestCase):
             events.Reload()
             scalar_tags = events.Tags()["scalars"]
             self.assertIn("val/loss_total", scalar_tags)
-            self.assertIn("val/best_loss", scalar_tags)
-            self.assertIn("val/precision_orange", scalar_tags)
-            self.assertIn("val/recall_apple", scalar_tags)
+            self.assertIn("val/AP50_orange", scalar_tags)
+            self.assertIn("val/AP50_apple", scalar_tags)
             self.assertIn("val/confusion_matrix", events.Tags()["images"])
             validation = json.loads(
                 (output / "evaluation" / "val_epoch_001.json").read_text()

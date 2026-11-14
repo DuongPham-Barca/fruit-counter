@@ -758,20 +758,20 @@ Sau đó mở địa chỉ TensorBoard in trên terminal, thường là `http://
 | Train theo epoch | `epoch/loss_total` và từng loss | Loss trung bình cả epoch |
 | Tối ưu | `train/lr`, `train/grad_norm` | Learning rate và gradient norm |
 | Hiệu năng | `train/images_per_second` | Tốc độ xử lý |
-| GPU | `train/gpu_peak_memory_gb` | VRAM peak |
 | Độ ổn định | `train/skipped_batches` | Số batch NaN/Inf bị bỏ |
 | Validation loss | `val/loss_total` và bốn loss thành phần | Loss trên val set |
 | Detection | `val/mAP50` | mAP tại IoU 0,5 |
 | Theo class | `val/AP50_orange`, `val/AP50_apple` | AP50 từng class |
-| Precision | `val/precision_macro` và từng class | Độ chính xác dự đoán |
-| Recall | `val/recall_macro`, từng class, `max_recall_*` | Khả năng phát hiện đủ object |
-| Best | `val/best_mAP50`, `val/best_loss` | Giá trị tốt nhất từ đầu run |
+| Precision/Recall | `val/precision_macro`, `val/recall_macro` | Trung bình macro hai class |
 
 TensorBoard còn lưu:
 
 - Text cấu hình ở step 0.
 - Ảnh dự đoán trên một số ảnh validation sau mỗi lần eval.
 - Confusion matrix dưới dạng image.
+
+VRAM peak và giá trị tốt nhất (`best_map`, `best_val_loss`) chỉ ghi vào
+`logs/metrics.jsonl`, không lặp lại trên TensorBoard vì đọc được từ chính các đường cong.
 
 Các dữ liệu trên là đủ tốt cho đồ án. Có thể bổ sung PR curve, histogram trọng số,
 histogram gradient hoặc sample lỗi hard-negative, nhưng chúng làm log lớn và chậm hơn;

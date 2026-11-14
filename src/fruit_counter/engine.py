@@ -134,8 +134,6 @@ def train_one_epoch(
             writer.add_scalar("train/lr", lr, step)
             writer.add_scalar("train/grad_norm", float(grad_norm), step)
             writer.add_scalar("train/images_per_second", window_batches * config.batch_size / max(elapsed, 1e-6), step)
-            if device.type == "cuda":
-                writer.add_scalar("train/gpu_peak_memory_gb", torch.cuda.max_memory_allocated(device) / 1e9, step)
             window_sums, window_batches, window_started = {}, 0, time.time()
 
     peak = round(torch.cuda.max_memory_allocated(device) / 1e9, 2) if device.type == "cuda" else None
@@ -291,8 +289,7 @@ def train(
                 writer.add_scalar("val/precision_macro", metrics["val"]["precision"], epoch + 1)
                 writer.add_scalar("val/recall_macro", metrics["val"]["recall"], epoch + 1)
                 for name, item in metrics["val"]["classes"].items():
-                    for metric in ("ap", "precision", "recall", "max_recall"):
-                        writer.add_scalar(f"val/{'AP50' if metric == 'ap' else metric}_{name}", item[metric], epoch + 1)
+                    writer.add_scalar(f"val/AP50_{name}", item["ap"], epoch + 1)
                 _log_confusion_matrix(writer, metrics["val"]["confusion_matrix"], epoch + 1)
                 (paths.evaluation / f"val_epoch_{epoch + 1:03d}.json").write_text(json.dumps({"loss": metrics["val_loss"], "metrics": metrics["val"]}, indent=2) + "\n", encoding="utf-8")
                 if config.vis_images:
@@ -314,13 +311,9 @@ def train(
                 save_checkpoint(paths.checkpoints / f"epoch_{epoch + 1:03d}.pt", **checkpoint)
             metrics["best_map"] = best_map
             metrics["best_val_loss"] = best_val_loss if math.isfinite(best_val_loss) else None
-            writer.add_scalar("val/best_mAP50", max(best_map, 0.0), epoch + 1)
-            if math.isfinite(best_val_loss):
-                writer.add_scalar("val/best_loss", best_val_loss, epoch + 1)
             writer.flush()
             log.write(json.dumps(metrics) + "\n")
             log.flush()
-            print(f"epoch {epoch + 1} done: loss {result.loss.get('loss_total', float('nan')):.4f}", flush=True)
     except KeyboardInterrupt:
         save_checkpoint(paths.checkpoints / "last.pt", **make_state(epoch - 1))
         raise
