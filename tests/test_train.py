@@ -31,7 +31,7 @@ class TrainingRunTests(unittest.TestCase):
                                        anchor_sizes=(8, 16, 32, 64, 128))
             config = TrainConfig(data=str(root / "data"), output=str(output), backbone="resnet18",
                                  epochs=1, batch_size=2, accumulate=1, workers=0, device="cpu",
-                                 tb_every=1, vis_images=1, save_every=1)
+                                 vis_images=1, save_every=1)
             train(config, model_config)
 
             for name in (

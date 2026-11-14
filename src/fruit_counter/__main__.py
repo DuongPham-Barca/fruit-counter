@@ -39,8 +39,6 @@ def _add_train(commands) -> None:
     train.add_argument("--eval-every", type=int, default=1, help="evaluate on val every N epochs")
     train.add_argument("--save-every", type=int, default=0,
                        help="also keep epoch_NNN.pt every N epochs (0: last and best only)")
-    train.add_argument("--tb-every", type=int, default=20,
-                       help="write TensorBoard train scalars every N optimizer steps")
     train.add_argument("--vis-images", type=int, default=4,
                        help="val images drawn with predictions in TensorBoard")
     train.add_argument("--min-size", type=int, nargs="+",
@@ -90,7 +88,7 @@ def _run(args) -> object:
             epochs=args.epochs, batch_size=args.batch_size, accumulate=args.accumulate,
             lr=args.lr, workers=args.workers, seed=args.seed, device=args.device,
             amp=not args.no_amp, eval_every=args.eval_every, save_every=args.save_every,
-            tb_every=args.tb_every, vis_images=args.vis_images, limit_batches=args.limit_batches,
+            vis_images=args.vis_images, limit_batches=args.limit_batches,
         )
         result = train(config, model_config, resume=args.resume)
         return {"best_map": result["best_map"], "best": result["best"]}

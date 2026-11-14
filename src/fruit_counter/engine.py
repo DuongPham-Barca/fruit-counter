@@ -32,6 +32,7 @@ from .train import (
 )
 
 COLORS = {1: (255, 150, 0), 2: (230, 30, 60)}
+TB_EVERY_STEPS = 20
 
 
 @dataclass
@@ -126,7 +127,7 @@ def train_one_epoch(
             lr=f"{lr:.2e}",
         )
 
-        if step % config.tb_every == 0 and window_batches:
+        if step % TB_EVERY_STEPS == 0 and window_batches:
             elapsed = time.time() - window_started
             for name, value in window_sums.items():
                 writer.add_scalar(f"train/{name}", value / window_batches, step)
