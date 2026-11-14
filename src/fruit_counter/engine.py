@@ -200,6 +200,11 @@ def _log_predictions(writer, model, dataset, count: int, device, step: int) -> N
         writer.add_image(f"val_predictions/{index}", canvas, step)
 
 
+def inference_state(state: dict) -> dict:
+    """Drop everything only needed to resume training, keeping what inference loads."""
+    return {key: value for key, value in state.items() if key not in ("optimizer", "scaler", "rng_state")}
+
+
 def _resume_path(path: Path, paths: RunPaths) -> Path:
     return paths.checkpoints / "last.pt" if str(path) == "auto" else path
 
@@ -218,9 +223,6 @@ def train(
     config: TrainConfig,
     model_config: ModelConfig | None = None,
     resume: Path | None = None,
-    *,
-    resolved_config: dict | None = None,
-    config_source: Path | None = None,
 ) -> dict:
     """Train, validate, save checkpoints and return a short run summary."""
     config.validate()
@@ -263,10 +265,10 @@ def train(
         print(f"resumed from {resume}: epoch {start_epoch}, step {step}", flush=True)
         del state
 
-    write_run_metadata(paths, config, model_config.to_dict(), resolved_config, config_source)
+    write_run_metadata(paths, config, model_config.to_dict())
     writer = SummaryWriter(str(paths.logs / "tensorboard"), purge_step=step if step else None)
     if step == 0:
-        writer.add_text("config", json.dumps(resolved_config or asdict(config), indent=2), 0)
+        writer.add_text("config", json.dumps(asdict(config), indent=2), 0)
     log = (paths.logs / "metrics.jsonl").open("a", encoding="utf-8")
 
     def make_state(epoch: int) -> dict:
@@ -313,10 +315,10 @@ def train(
             loss_improved = val_loss is not None and math.isfinite(val_loss) and val_loss < best_val_loss
             if improved:
                 best_map = val_map
-                save_checkpoint(paths.checkpoints / "best_map50.pt", **{key: value for key, value in make_state(epoch).items() if key not in ("optimizer", "scaler", "rng_state")})
+                save_checkpoint(paths.checkpoints / "best_map50.pt", **inference_state(make_state(epoch)))
             if loss_improved:
                 best_val_loss = val_loss
-                save_checkpoint(paths.checkpoints / "best_val_loss.pt", **{key: value for key, value in make_state(epoch).items() if key not in ("optimizer", "scaler", "rng_state")})
+                save_checkpoint(paths.checkpoints / "best_val_loss.pt", **inference_state(make_state(epoch)))
             checkpoint = make_state(epoch)
             save_checkpoint(paths.checkpoints / "last.pt", **checkpoint)
             if config.save_every and (epoch + 1) % config.save_every == 0:

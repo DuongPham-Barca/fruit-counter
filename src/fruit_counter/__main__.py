@@ -2,11 +2,7 @@
 
 import argparse
 import json
-import os
 from pathlib import Path
-
-# Reduces CUDA memory fragmentation, which matters on a 4 GB GPU. Set before torch loads.
-os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 
 def _add_count(commands) -> None:
@@ -43,7 +39,8 @@ def _add_train(commands) -> None:
     train.add_argument("--eval-every", type=int, default=1, help="evaluate on val every N epochs")
     train.add_argument("--save-every", type=int, default=0,
                        help="also keep epoch_NNN.pt every N epochs (0: last and best only)")
-    train.add_argument("--log-every", type=int, default=20, help="TensorBoard scalars every N steps")
+    train.add_argument("--log-every", type=int, default=20,
+                       help="print a progress line and write TensorBoard scalars every N optimizer steps")
     train.add_argument("--vis-images", type=int, default=4,
                        help="val images drawn with predictions in TensorBoard")
     train.add_argument("--min-size", type=int, nargs="+",
@@ -109,9 +106,8 @@ def _run(args) -> object:
                             collate_fn=collate)
         return evaluate_model(detector.model, loader, detector.device)
 
-    from .pipeline import count_video
-
     from .fruit_counter_net import FruitCounterNetDetector
+    from .pipeline import count_video
 
     detector = FruitCounterNetDetector(args.weights, args.device, min_score=args.min_score)
     result = count_video(

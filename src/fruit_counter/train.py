@@ -4,7 +4,6 @@ import json
 import math
 import platform
 import random
-import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -164,14 +163,8 @@ def restore_rng_state(state: dict | None, generator: torch.Generator) -> None:
         torch.cuda.set_rng_state_all(state["cuda"])
 
 
-def write_run_metadata(
-    paths: RunPaths,
-    train_config: TrainConfig,
-    model_config: dict,
-    resolved_config: dict | None,
-    config_source: Path | None,
-) -> None:
-    """Record immutable environment and configuration details for a run."""
+def write_run_metadata(paths: RunPaths, train_config: TrainConfig, model_config: dict) -> None:
+    """Record environment and configuration; a later run in the same folder is a resume."""
     payload = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "python": platform.python_version(),
@@ -183,21 +176,9 @@ def write_run_metadata(
         "pretrained_weights": None,
     }
     metadata_path = paths.root / "run_metadata.json"
-    if not metadata_path.exists():
-        metadata_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    else:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        (paths.root / f"resume_metadata_{timestamp}.json").write_text(
-            json.dumps(payload, indent=2) + "\n",
-            encoding="utf-8",
-        )
-    if resolved_config is not None and not (paths.root / "resolved_config.json").exists():
-        (paths.root / "resolved_config.json").write_text(
-            json.dumps(resolved_config, indent=2) + "\n",
-            encoding="utf-8",
-        )
-    if config_source is not None and not (paths.root / "source_config.py").exists():
-        shutil.copy2(config_source, paths.root / "source_config.py")
+    if metadata_path.exists():
+        metadata_path = paths.root / f"resume_metadata_{datetime.now():%Y%m%d_%H%M%S}.json"
+    metadata_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def set_seed(seed: int) -> None:
