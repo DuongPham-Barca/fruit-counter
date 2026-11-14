@@ -98,10 +98,6 @@ Một lần chạy video tạo:
 
 ```text
 fruit-counter/
-├── train_model.py
-│   └── Entry point dễ đọc: cấu hình model, data, optimizer và gọi train.
-├── evaluate_model.py
-│   └── Đánh giá một checkpoint trên train/val/test split.
 ├── pyproject.toml
 │   └── Metadata package, dependencies, console command và Ruff config.
 ├── README.md
@@ -110,11 +106,6 @@ fruit-counter/
 │   └── Tài liệu đầy đủ này.
 ├── PLAN.md
 │   └── Phạm vi, yêu cầu và lộ trình dự án.
-├── scripts/
-│   └── train.sh                 Script train/resume nhanh.
-├── tools/
-│   ├── prepare_coco.py          Chuẩn bị dataset COCO cam/táo.
-│   └── count_video.py           Chạy detector + tracker + counter.
 ├── data/
 │   ├── README.md                Quy tắc dữ liệu video thật.
 │   ├── cache/                   Annotation cache, không commit.
@@ -145,7 +136,7 @@ fruit-counter/
 
 Nếu mới tiếp cận repository, đọc theo thứ tự:
 
-1. `train_model.py` để hiểu thông số và cách khởi động.
+1. `src/fruit_counter/__main__.py` để hiểu các lệnh CLI và tham số.
 2. `src/fruit_counter/dataset.py` để hiểu dữ liệu đầu vào.
 3. `src/fruit_counter/model.py` để hiểu architecture.
 4. `src/fruit_counter/train.py` để hiểu config, schedule và checkpoint.
@@ -477,7 +468,7 @@ Quy ước 80/20 thường phù hợp khi chỉ cần train và validation. Đ�
 20% validation:
 
 ```sh
-PYTHONPATH=src python tools/prepare_coco.py \
+fruit-counter prepare-coco \
   --output data/datasets/coco-fruit-80-20 \
   --val-fraction 0.2
 ```
@@ -486,7 +477,7 @@ Nên dùng một thư mục output mới vì ghi đè lên split cũ có thể �
 train với:
 
 ```sh
-PYTHONPATH=src python train_model.py \
+fruit-counter train \
   --data data/datasets/coco-fruit-80-20 \
   --output outputs/fruit_counter_net_r50_80_20
 ```
@@ -528,7 +519,7 @@ loader shuffle dữ liệu; validation loader không shuffle. Khi chạy CUDA, l
 
 ### 8.1. Trình tự một lần train
 
-Luồng trong `train_model.py`, `train.py` và `engine.py`:
+Luồng trong `__main__.py`, `train.py` và `engine.py`:
 
 1. Đọc tham số CLI và tạo `ModelConfig`, `TrainConfig`.
 2. Kiểm tra CUDA, các giá trị cấu hình và output directory.
@@ -541,9 +532,9 @@ Luồng trong `train_model.py`, `train.py` và `engine.py`:
 9. Ghi TensorBoard, JSON, ảnh dự đoán và confusion matrix.
 10. Lưu `last.pt`, đồng thời cập nhật best checkpoint khi metric tốt hơn.
 
-### 8.2. Cấu hình mặc định của entrypoint dễ đọc
+### 8.2. Cấu hình mặc định của lệnh train
 
-Các giá trị ở đầu `train_model.py`:
+Giá trị mặc định của `fruit-counter train` (xem `fruit-counter train --help`):
 
 | Tham số | Giá trị |
 | --- | --- |
@@ -559,9 +550,10 @@ Các giá trị ở đầu `train_model.py`:
 | Worker | 4 |
 | Device | CUDA |
 | Mixed precision | Bật |
-| Seed | 42 |
+| Seed | 0 |
 
-Có thể sửa trực tiếp block `CONFIGURATION` hoặc override bằng CLI. Cấu hình nội bộ còn
+Mọi giá trị trên đổi được bằng tham số CLI. Learning rate nếu không truyền sẽ tính theo
+`0,02 × effective batch / 16` (với batch 8 ra đúng 0,01). Cấu hình nội bộ còn
 có warmup 1.000 step, cosine decay, minimum LR ratio 0,01, gradient clipping 10 và
 validation sau mỗi epoch.
 
@@ -587,7 +579,7 @@ Nếu gặp loss `NaN/Inf`, batch đó bị bỏ qua; quá nhiều batch lỗi l
 Tắt AMP để debug:
 
 ```sh
-PYTHONPATH=src python train_model.py --no-amp
+fruit-counter train --data data/datasets/coco-fruit --output outputs/amp_off --no-amp
 ```
 
 ### 8.5. Resize ảnh trong detector
@@ -830,13 +822,17 @@ Gradient mới tích lũy nhưng chưa đủ để thực hiện optimizer step 
 Tiếp tục run mặc định:
 
 ```sh
-PYTHONPATH=src python train_model.py --resume
+fruit-counter train \
+  --data data/datasets/coco-fruit \
+  --output outputs/fruit_counter_net_r50_coco_scratch \
+  --resume auto
 ```
 
 Hoặc chỉ rõ checkpoint:
 
 ```sh
-PYTHONPATH=src python train_model.py \
+fruit-counter train \
+  --data data/datasets/coco-fruit \
   --output outputs/fruit_counter_net_r50_coco_scratch \
   --resume outputs/fruit_counter_net_r50_coco_scratch/checkpoints/last.pt
 ```
@@ -845,8 +841,7 @@ Khi resume phải dùng lại dataset, batch size, accumulation, LR, optimizer-r
 seed và model architecture. Code chủ động báo lỗi nếu các giá trị quan trọng thay đổi,
 vì thay đổi âm thầm sẽ phá tính liên tục của training.
 
-Lưu ý: `--resume` không có giá trị trong `train_model.py` tự hiểu là `auto` và tìm
-`<output>/checkpoints/last.pt`. CLI `fruit-counter train` yêu cầu đường dẫn cụ thể.
+Lưu ý: `--resume auto` tìm `<output>/checkpoints/last.pt`.
 
 ---
 
@@ -907,7 +902,7 @@ FFprobe đọc width, height, FPS và metadata. FFmpeg decode video thành frame
 resize theo `--width`, chạy detector/tracker/counter, vẽ annotation rồi encode thành MP4.
 Âm thanh đầu vào không được giữ lại.
 
-Tool `count_video.py` mặc định xử lý width 640. Hàm Python `count_video()` mặc định 320,
+Lệnh `fruit-counter count` mặc định xử lý width 640. Hàm Python `count_video()` mặc định 320,
 nhưng CLI truyền rõ 640. Width nhỏ nhanh hơn nhưng có thể làm mất object nhỏ.
 
 ### 14.5. Hạn chế tracking
@@ -949,14 +944,14 @@ python -m pip install -e '.[dev]' --no-build-isolation
 Mặc định khoảng 90/10 trên nguồn COCO train:
 
 ```sh
-PYTHONPATH=src python tools/prepare_coco.py \
+fruit-counter prepare-coco \
   --output data/datasets/coco-fruit
 ```
 
 Tạo bản 80/20:
 
 ```sh
-PYTHONPATH=src python tools/prepare_coco.py \
+fruit-counter prepare-coco \
   --output data/datasets/coco-fruit-80-20 \
   --val-fraction 0.2
 ```
@@ -1005,7 +1000,7 @@ fruit-counter train \
 ### 15.6. Evaluate
 
 ```sh
-PYTHONPATH=src python evaluate_model.py \
+fruit-counter evaluate \
   --data data/datasets/coco-fruit \
   --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --split test \
@@ -1015,25 +1010,15 @@ PYTHONPATH=src python evaluate_model.py \
 ### 15.7. Đếm video thật
 
 ```sh
-PYTHONPATH=src python tools/count_video.py \
-  input/video.mp4 \
-  outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
+fruit-counter count \
+  --input input/video.mp4 \
+  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count_video_01 \
   --device cuda \
   --width 640 \
   --line 0.5 \
   --direction ltr \
   --min-score 0.1
-```
-
-Tương đương bằng package CLI:
-
-```sh
-fruit-counter count \
-  --input input/video.mp4 \
-  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
-  --output outputs/count_video_01 \
-  --direction ltr
 ```
 
 ---
@@ -1136,6 +1121,19 @@ Giảm theo thứ tự:
 Không nên chỉ giảm accumulation vì nó không trực tiếp giảm VRAM của một forward; batch
 size và resolution mới là yếu tố chính.
 
+### 18.2.1. WSL2: `CUDA driver error: device not ready` / `Failed to create GPU mapping`
+
+Lỗi này xuất hiện giữa lúc train (ví dụ ở batch 63 của epoch 1), sau đó `nvidia-smi` báo
+`GPU access blocked by the operating system` và `torch.cuda.is_available()` trả về
+`False` cho tới khi restart WSL. Trong `dmesg` có dòng `dxgkio_make_resident: Ioctl failed: -12`
+(hết bộ nhớ GPU).
+
+Nguyên nhân là `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: chế độ này cấp phát
+VRAM qua API ánh xạ bộ nhớ ảo của CUDA; trên WSL2 với GPU 4GB, khi VRAM đầy nó thất bại
+như trên thay vì báo `CUDA out of memory` thông thường. Dự án **không** bật chế độ này.
+Nếu shell của bạn có đặt biến đó thì bỏ đi (`unset PYTORCH_CUDA_ALLOC_CONF`). Nếu sau đó
+gặp `CUDA out of memory` thật thì làm theo 18.2.
+
 ### 18.3. Không tìm thấy dataset
 
 Đảm bảo có `<data>/<split>/images`. Validation mặc định tên `val`, không phải `valid`.
@@ -1218,13 +1216,13 @@ ffprobe -version
 
 Để hiểu dự án nhanh mà không bị rối, nên đọc theo thứ tự:
 
-1. `train_model.py`: thấy toàn bộ cấu hình và entrypoint train.
+1. `src/fruit_counter/__main__.py`: các lệnh CLI và tham số train/evaluate/count.
 2. `src/fruit_counter/model.py`: đọc CNN, ResNet, FPN, RPN, RoI box head.
 3. `src/fruit_counter/dataset.py`: hiểu format label, mapping class và augmentation.
 4. `src/fruit_counter/train.py`: config, LR schedule, checkpoint và metadata.
 5. `src/fruit_counter/engine.py`: forward/backward/optimizer, validation và log.
 6. `src/fruit_counter/evaluate.py`: công thức metric và validation loss.
-7. `evaluate_model.py`: entrypoint đánh giá độc lập.
+7. `fruit-counter evaluate` (trong `__main__.py`): đánh giá checkpoint độc lập.
 8. `src/fruit_counter/fruit_counter_net.py`: adapter từ model sang detection.
 9. `src/fruit_counter/tracker.py`: Kalman, Hungarian, voting và line crossing.
 10. `src/fruit_counter/pipeline.py`: nối detector → tracker → FFmpeg output.

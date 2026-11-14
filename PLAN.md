@@ -12,7 +12,7 @@
   - Mọi trọng số khởi tạo ngẫu nhiên. Mọi lớp chuẩn hóa là GroupNorm, theo He et al. 2018, "Rethinking ImageNet Pre-training".
   - Có test chặn tải trọng số và kiểm tra không còn BatchNorm hay lớp bị đóng băng.
   - Anchor có 5 mức (16–256 px), tỉ lệ khung 0.75/1/1.33.
-- **Huấn luyện** (entrypoint dễ đọc `train_model.py`, config/checkpoint ở `src/fruit_counter/train.py`, training loop ở `src/fruit_counter/engine.py`):
+- **Huấn luyện** (lệnh `fruit-counter train` ở `src/fruit_counter/__main__.py`, config/checkpoint ở `src/fruit_counter/train.py`, training loop ở `src/fruit_counter/engine.py`):
   - SGD, warmup tuyến tính rồi cosine, AMP, tích lũy gradient (batch 2 × 4).
   - Cạnh ngắn của ảnh chọn ngẫu nhiên trong 416–512 px.
   - Mỗi epoch đánh giá mAP@0.5 theo lớp trên tập validation, lưu `checkpoints/best_map50.pt` và `checkpoints/last.pt`, có thể chạy tiếp (resume).

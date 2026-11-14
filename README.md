@@ -11,9 +11,8 @@ Pipeline: **FruitCounterNet → ByteTrack-style tracker → line-crossing counte
 ## Project layout
 
 ```text
-train_model.py                   readable training entrypoint and settings
-evaluate_model.py                evaluate one trained checkpoint
 src/fruit_counter/
+├── __main__.py                  `fruit-counter` CLI: prepare-coco, train, evaluate, count
 ├── model.py                     explicit CNN, RPN and box-head layers
 ├── fruit_counter_net.py         checkpoint/inference adapter
 ├── dataset.py                   YOLO parsing, augmentation and loaders
@@ -23,13 +22,12 @@ src/fruit_counter/
 ├── tracker.py                   tracking and line crossing
 ├── pipeline.py                  end-to-end video pipeline
 ├── video.py                     FFmpeg I/O
-tools/                           dataset preparation and video-count utilities
 tests/                           unit and integration tests
 ```
 
-Start with `train_model.py`: it reads top-to-bottom as Dataset → CNN → loss/optimizer
-→ train/validate, like the brain-tumor project. `engine.py` keeps that complete loop
-in one place instead of scattering it across a folder.
+Everything runs through the `fruit-counter` command. `engine.py` keeps the complete
+Dataset → CNN → loss/optimizer → train/validate loop in one place instead of scattering
+it across a folder.
 
 ## Setup
 
@@ -64,7 +62,7 @@ and class 1 is apple. A missing label file represents a background image.
 Build the initial COCO-derived dataset:
 
 ```sh
-PYTHONPATH=src python tools/prepare_coco.py --output data/datasets/coco-fruit
+fruit-counter prepare-coco --output data/datasets/coco-fruit
 ```
 
 COCO is only a starting point. Accuracy for the real application must be measured on
@@ -173,7 +171,8 @@ metadata is stored separately, so the original run information is not overwritte
 Evaluate the best checkpoint on the held-out test split:
 
 ```sh
-PYTHONPATH=src python evaluate_model.py \
+fruit-counter evaluate \
+  --data data/datasets/coco-fruit \
   --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --split test
 ```
@@ -184,12 +183,23 @@ mAP@[0.50:0.95] evaluator should be added before publishing benchmark results.
 ## Count a video
 
 ```sh
-PYTHONPATH=src python tools/count_video.py video.mp4 \
-  outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
+fruit-counter count \
+  --input video.mp4 \
+  --weights outputs/fruit_counter_net_r50_coco_scratch/checkpoints/best_map50.pt \
   --output outputs/count
 ```
 
 The output contains `annotated.mp4`, `summary.json`, and `events.csv`.
+
+## Troubleshooting
+
+**WSL2: `CUDA driver error: device not ready` / `Failed to create GPU mapping`.** Do not
+set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. On WSL2 with a 4 GB GPU it turns an
+ordinary out-of-memory into this error and drops GPU access (`nvidia-smi` reports
+"GPU access blocked") until WSL is restarted. Without it PyTorch raises a normal
+`CUDA out of memory`; then lower `--batch-size`, use `--backbone resnet34`, or reduce
+`--max-size` / `--min-size`. More causes and fixes: section 18 of
+[TAI_LIEU_DU_AN.md](TAI_LIEU_DU_AN.md).
 
 ## Tests
 
@@ -197,6 +207,6 @@ The output contains `annotated.mp4`, `summary.json`, and `events.csv`.
 PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
-Tests cover config inheritance and overrides, random model initialization, training and
+Tests cover random model initialization, training and
 resume artifacts, YOLO parsing and augmentation, AP calculation, tracker association,
 line crossing, and the end-to-end synthetic video pipeline.
