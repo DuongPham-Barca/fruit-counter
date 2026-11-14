@@ -33,7 +33,7 @@ class TrainConfig:
     amp: bool = True
     eval_every: int = 1
     save_every: int = 0
-    log_every: int = 20
+    tb_every: int = 20
     vis_images: int = 4
     max_bad_batches: int = 20
     limit_batches: int | None = None
@@ -55,8 +55,8 @@ class TrainConfig:
             raise ValueError("batch_size and accumulate must be positive")
         if self.workers < 0:
             raise ValueError("workers cannot be negative")
-        if self.eval_every < 1 or self.log_every < 1:
-            raise ValueError("eval_every and log_every must be positive")
+        if self.eval_every < 1 or self.tb_every < 1:
+            raise ValueError("eval_every and tb_every must be positive")
         if self.save_every < 0:
             raise ValueError("save_every cannot be negative")
         if self.base_lr <= 0:

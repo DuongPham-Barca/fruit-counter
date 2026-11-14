@@ -1156,7 +1156,7 @@ có optimizer/scaler/RNG.
 ### 18.6. TensorBoard không có dữ liệu
 
 - Kiểm tra đúng đường dẫn `.../logs/tensorboard`.
-- Đợi đến `log_every` step đầu hoặc hết epoch.
+- Đợi đến `tb_every` step đầu hoặc hết epoch.
 - Refresh trình duyệt.
 - Không trỏ TensorBoard trực tiếp vào thư mục `checkpoints`.
 

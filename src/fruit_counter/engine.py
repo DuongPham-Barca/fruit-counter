@@ -43,11 +43,6 @@ class EpochResult:
     gpu_peak_memory_gb: float | None = None
 
 
-def _format_seconds(seconds: float) -> str:
-    seconds = int(seconds)
-    return f"{seconds // 3600}h{seconds % 3600 // 60:02d}m"
-
-
 def train_one_epoch(
     model,
     loader,
@@ -61,7 +56,6 @@ def train_one_epoch(
     warmup_steps: int,
     total_steps: int,
     writer,
-    training_started: float,
 ) -> EpochResult:
     """Run forward pass, loss, backward pass and optimizer update for one epoch."""
     model.train()
@@ -132,7 +126,7 @@ def train_one_epoch(
             lr=f"{lr:.2e}",
         )
 
-        if step % config.log_every == 0 and window_batches:
+        if step % config.tb_every == 0 and window_batches:
             elapsed = time.time() - window_started
             for name, value in window_sums.items():
                 writer.add_scalar(f"train/{name}", value / window_batches, step)
@@ -141,12 +135,6 @@ def train_one_epoch(
             writer.add_scalar("train/images_per_second", window_batches * config.batch_size / max(elapsed, 1e-6), step)
             if device.type == "cuda":
                 writer.add_scalar("train/gpu_peak_memory_gb", torch.cuda.max_memory_allocated(device) / 1e9, step)
-            remaining = (time.time() - training_started) / max(step, 1) * max(total_steps - step, 0)
-            progress.write(
-                f"epoch {epoch + 1}/{config.epochs} step {step}/{total_steps} "
-                f"loss {window_sums['loss_total'] / window_batches:.4f} lr {lr:.5f} "
-                f"eta {_format_seconds(remaining)}",
-            )
             window_sums, window_batches, window_started = {}, 0, time.time()
 
     peak = round(torch.cuda.max_memory_allocated(device) / 1e9, 2) if device.type == "cuda" else None
@@ -280,10 +268,10 @@ def train(
         }
 
     print(f"training {model_config.backbone}: {len(train_set)} train / {len(val_set)} val images", flush=True)
-    metrics, epoch, started = {}, start_epoch, time.time()
+    metrics, epoch = {}, start_epoch
     try:
         for epoch in range(start_epoch, config.epochs):
-            result = train_one_epoch(model, train_loader, optimizer, scaler, device, config, epoch, step, batches_per_epoch, warmup_steps, total_steps, writer, started)
+            result = train_one_epoch(model, train_loader, optimizer, scaler, device, config, epoch, step, batches_per_epoch, warmup_steps, total_steps, writer)
             step = result.step
             metrics = {"epoch": epoch, "step": step, "lr": result.lr, "seconds": result.seconds, "loss": result.loss}
             if result.gpu_peak_memory_gb is not None:
