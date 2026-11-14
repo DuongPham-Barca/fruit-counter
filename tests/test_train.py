@@ -2,10 +2,12 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from PIL import Image, ImageDraw
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
+from fruit_counter import engine
 from fruit_counter.model import ModelConfig
 from fruit_counter.train import TrainConfig, load_checkpoint, train
 
@@ -31,8 +33,9 @@ class TrainingRunTests(unittest.TestCase):
                                        anchor_sizes=(8, 16, 32, 64, 128))
             config = TrainConfig(data=str(root / "data"), output=str(output), backbone="resnet18",
                                  epochs=1, batch_size=2, accumulate=1, workers=0, device="cpu",
-                                 log_every=1, vis_images=1, save_every=1)
-            train(config, model_config)
+                                 vis_images=1, save_every=1)
+            with mock.patch.object(engine, "TB_EVERY_STEPS", 1):
+                train(config, model_config)
 
             for name in (
                 "run_metadata.json",
@@ -48,10 +51,12 @@ class TrainingRunTests(unittest.TestCase):
             events = EventAccumulator(str(output / "logs" / "tensorboard"))
             events.Reload()
             scalar_tags = events.Tags()["scalars"]
+            self.assertIn("train/loss_total", scalar_tags)
+            self.assertIn("train/grad_norm", scalar_tags)
+            self.assertIn("train/images_per_second", scalar_tags)
             self.assertIn("val/loss_total", scalar_tags)
-            self.assertIn("val/best_loss", scalar_tags)
-            self.assertIn("val/precision_orange", scalar_tags)
-            self.assertIn("val/recall_apple", scalar_tags)
+            self.assertIn("val/AP50_orange", scalar_tags)
+            self.assertIn("val/AP50_apple", scalar_tags)
             self.assertIn("val/confusion_matrix", events.Tags()["images"])
             validation = json.loads(
                 (output / "evaluation" / "val_epoch_001.json").read_text()
@@ -88,6 +93,8 @@ class TrainingRunTests(unittest.TestCase):
                 len((output / "logs" / "metrics.jsonl").read_text().splitlines()),
                 2,
             )
+            events.Reload()
+            self.assertIn(4, [event.step for event in events.Scalars("train/loss_total")])
 
 
 if __name__ == "__main__":

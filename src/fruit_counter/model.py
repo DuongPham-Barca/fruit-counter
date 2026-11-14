@@ -13,7 +13,6 @@ explicit sigmoid does not belong in the class head.
 
 from dataclasses import asdict, dataclass
 
-import torch
 from torch import Tensor, nn
 from torchvision.models.detection import FasterRCNN as TorchvisionFasterRCNN
 from torchvision.models.detection.anchor_utils import AnchorGenerator
