@@ -32,6 +32,8 @@ from .train import (
 )
 
 COLORS = {1: (255, 150, 0), 2: (230, 30, 60)}
+# TensorBoard train scalars are averaged over this many optimizer steps: dense
+# enough to spot a loss spike, sparse enough to keep the event file readable.
 TB_EVERY_STEPS = 20
 
 
@@ -58,11 +60,12 @@ def train_one_epoch(
     total_steps: int,
     writer,
 ) -> EpochResult:
-    """Run forward pass, loss, backward pass and optimizer update for one epoch."""
+    """Train one epoch, averaging TensorBoard scalars over TB_EVERY_STEPS windows."""
     model.train()
     started = time.time()
     epoch_sums, window_sums, window_batches = {}, {}, 0
     finite_batches, bad_batches, window_started = 0, 0, time.time()
+    window_steps, window_grad_norm = 0, 0.0
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
     optimizer.zero_grad(set_to_none=True)
@@ -74,6 +77,32 @@ def train_one_epoch(
         unit="batch",
         dynamic_ncols=True,
     )
+
+    def report(batch_loss: float, learning_rate: float) -> None:
+        progress.set_postfix(
+            loss=f"{batch_loss:.4f}",
+            avg_loss=f"{epoch_sums['loss_total'] / finite_batches:.4f}",
+            lr=f"{learning_rate:.2e}",
+        )
+
+    def flush_window(current_step: int, learning_rate: float) -> None:
+        """Write the scalar averages collected since the last flush."""
+        nonlocal window_sums, window_batches, window_started, window_steps, window_grad_norm
+        if not window_batches:
+            return
+        elapsed = time.time() - window_started
+        for name, value in window_sums.items():
+            writer.add_scalar(f"train/{name}", value / window_batches, current_step)
+        writer.add_scalar("train/lr", learning_rate, current_step)
+        writer.add_scalar("train/grad_norm", window_grad_norm / max(1, window_steps), current_step)
+        writer.add_scalar(
+            "train/images_per_second",
+            window_batches * config.batch_size / max(elapsed, 1e-6),
+            current_step,
+        )
+        window_sums, window_batches, window_started = {}, 0, time.time()
+        window_steps, window_grad_norm = 0, 0.0
+
     for batch_index, (images, targets) in enumerate(progress):
         images = [image.to(device, non_blocking=True) for image in images]
         targets = [
@@ -103,11 +132,7 @@ def train_one_epoch(
             epoch_sums[name] = epoch_sums.get(name, 0.0) + scalar
             window_sums[name] = window_sums.get(name, 0.0) + scalar
         window_batches += 1
-        progress.set_postfix(
-            loss=f"{loss.item():.4f}",
-            avg_loss=f"{epoch_sums['loss_total'] / finite_batches:.4f}",
-            lr=f"{optimizer.param_groups[0]['lr']:.2e}",
-        )
+        report(loss.item(), optimizer.param_groups[0]["lr"])
 
         last_batch = batch_index + 1 == batches_per_epoch
         if finite_batches % config.accumulate != 0 and not last_batch:
@@ -121,21 +146,14 @@ def train_one_epoch(
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
         step += 1
-        progress.set_postfix(
-            loss=f"{loss.item():.4f}",
-            avg_loss=f"{epoch_sums['loss_total'] / finite_batches:.4f}",
-            lr=f"{lr:.2e}",
-        )
+        window_steps += 1
+        window_grad_norm += float(grad_norm)
+        report(loss.item(), lr)
 
-        if step % TB_EVERY_STEPS == 0 and window_batches:
-            elapsed = time.time() - window_started
-            for name, value in window_sums.items():
-                writer.add_scalar(f"train/{name}", value / window_batches, step)
-            writer.add_scalar("train/lr", lr, step)
-            writer.add_scalar("train/grad_norm", float(grad_norm), step)
-            writer.add_scalar("train/images_per_second", window_batches * config.batch_size / max(elapsed, 1e-6), step)
-            window_sums, window_batches, window_started = {}, 0, time.time()
+        if step % TB_EVERY_STEPS == 0:
+            flush_window(step, lr)
 
+    flush_window(step, optimizer.param_groups[0]["lr"])
     peak = round(torch.cuda.max_memory_allocated(device) / 1e9, 2) if device.type == "cuda" else None
     return EpochResult(
         step=step,
@@ -199,7 +217,10 @@ def _resume_path(path: Path, paths: RunPaths) -> Path:
 def _validate_resume_config(previous: dict | None, current: TrainConfig) -> None:
     if not previous:
         return
-    immutable = ("data", "batch_size", "accumulate", "lr", "momentum", "weight_decay", "warmup_steps", "min_lr_ratio", "max_grad_norm", "train_split", "val_split", "seed")
+    immutable = (
+        "data", "batch_size", "accumulate", "lr", "momentum", "weight_decay",
+        "warmup_steps", "min_lr_ratio", "max_grad_norm", "train_split", "val_split", "seed",
+    )
     changed = [name for name in immutable if name in previous and previous[name] != getattr(current, name)]
     if changed:
         details = ", ".join(f"{name}: {previous[name]!r} -> {getattr(current, name)!r}" for name in changed)
@@ -270,7 +291,10 @@ def train(
     metrics, epoch = {}, start_epoch
     try:
         for epoch in range(start_epoch, config.epochs):
-            result = train_one_epoch(model, train_loader, optimizer, scaler, device, config, epoch, step, batches_per_epoch, warmup_steps, total_steps, writer)
+            result = train_one_epoch(
+                model, train_loader, optimizer, scaler, device, config, epoch, step,
+                batches_per_epoch, warmup_steps, total_steps, writer,
+            )
             step = result.step
             metrics = {"epoch": epoch, "step": step, "lr": result.lr, "seconds": result.seconds, "loss": result.loss}
             if result.gpu_peak_memory_gb is not None:
@@ -291,7 +315,10 @@ def train(
                 for name, item in metrics["val"]["classes"].items():
                     writer.add_scalar(f"val/AP50_{name}", item["ap"], epoch + 1)
                 _log_confusion_matrix(writer, metrics["val"]["confusion_matrix"], epoch + 1)
-                (paths.evaluation / f"val_epoch_{epoch + 1:03d}.json").write_text(json.dumps({"loss": metrics["val_loss"], "metrics": metrics["val"]}, indent=2) + "\n", encoding="utf-8")
+                (paths.evaluation / f"val_epoch_{epoch + 1:03d}.json").write_text(
+                    json.dumps({"loss": metrics["val_loss"], "metrics": metrics["val"]}, indent=2) + "\n",
+                    encoding="utf-8",
+                )
                 if config.vis_images:
                     _log_predictions(writer, model, val_set, config.vis_images, device, epoch + 1)
 
@@ -320,4 +347,10 @@ def train(
     finally:
         writer.close()
         log.close()
-    return {"best_map": best_map, "best_val_loss": best_val_loss, "last": metrics, "work_dir": str(paths.root), "best": str(paths.checkpoints / "best_map50.pt")}
+    return {
+        "best_map": best_map,
+        "best_val_loss": best_val_loss,
+        "last": metrics,
+        "work_dir": str(paths.root),
+        "best": str(paths.checkpoints / "best_map50.pt"),
+    }
